@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0ac2f2;stop-opacity:1" />
+      <stop offset="45%" style="stop-color:#3a50e5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#a817d6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background rounded square (squircle) -->
+  <rect x="0" y="0" width="120" height="120" rx="32" ry="32" fill="url(#logoGradient)" style="filter: drop-shadow(0 8px 16px rgba(58, 80, 229, 0.2))"/>
+  
+  <!-- Hollow diamond shape (rotated square with rounded corners) -->
+  <g transform="translate(60, 60)">
+    <rect x="-24" y="-24" width="48" height="48" rx="12" ry="12" fill="none" stroke="#ffffff" stroke-width="4.5" transform="rotate(45)" />
+  </g>
+  
+  <!-- Inner solid white dot -->
+  <circle cx="60" cy="60" r="8" fill="#ffffff"/>
+</svg>
