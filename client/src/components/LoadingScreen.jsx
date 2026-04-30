@@ -1,6 +1,4 @@
-import React from 'react';
-
-const LoadingScreen = ({ onFinish }) => {
+const LoadingScreen = () => {
   return (
     <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center backdrop-blur-md transition-all duration-500">
       

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Sun, Moon } from 'lucide-react';
 
 const Navbar = ({ isDark, toggleTheme, isLoading }) => {
