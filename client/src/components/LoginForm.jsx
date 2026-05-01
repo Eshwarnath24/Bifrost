@@ -1,14 +1,20 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
-import { InputField, GoogleButton, SocialIcons } from './FormElements';
-import { googleAuthRequest, loadGoogleIdentityScript, loginRequest } from '../lib/authApi';
+import { InputField, SocialIcons } from './FormElements';
+import { googleAuthRequest, loginRequest, checkEmailRequest } from '../lib/authApi';
+
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 const LoginForm = ({ isActive, onForgotClick, onLoginSuccess, setGlobalLoading }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  // Email verification state
+  const [emailStatus, setEmailStatus] = useState('idle'); // idle | checking | found | not-found | error
+  const [emailProvider, setEmailProvider] = useState(null);
+  const checkTimeoutRef = useRef(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,80 +33,73 @@ const LoginForm = ({ isActive, onForgotClick, onLoginSuccess, setGlobalLoading }
     }
   };
 
-  const handleGoogleClick = async () => {
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-
-    if (!clientId) {
-      setErrorMessage('Google sign-in is not configured in the frontend environment.');
-      return;
-    }
-
-    setGoogleLoading(true);
+  const handleGoogleSignIn = async (response) => {
     setErrorMessage('');
     if (setGlobalLoading) setGlobalLoading(true);
 
     try {
-      await loadGoogleIdentityScript();
+      if (!response?.credential) {
+        throw new Error('Google did not return an ID token');
+      }
 
-      await new Promise((resolve, reject) => {
-        let settled = false;
-
-        window.google.accounts.id.initialize({
-          client_id: clientId,
-          callback: async (response) => {
-            if (settled) {
-              return;
-            }
-
-            settled = true;
-
-            try {
-              if (!response?.credential) {
-                throw new Error('Google did not return an ID token');
-              }
-
-              const result = await googleAuthRequest(response.credential);
-              onLoginSuccess?.(result);
-              resolve(result);
-            } catch (error) {
-              reject(error);
-            } finally {
-              setGoogleLoading(false);
-              if (setGlobalLoading) setGlobalLoading(false);
-            }
-          },
-        });
-
-        window.google.accounts.id.prompt((notification) => {
-          if (settled) {
-            return;
-          }
-
-          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-            settled = true;
-            reject(new Error('Google sign-in prompt was not displayed'));
-            setGoogleLoading(false);
-            if (setGlobalLoading) setGlobalLoading(false);
-          }
-        });
-      });
+      const result = await googleAuthRequest(response.credential);
+      onLoginSuccess?.(result);
     } catch (error) {
       setErrorMessage(error.message || 'Google sign-in failed');
-      setGoogleLoading(false);
+    } finally {
       if (setGlobalLoading) setGlobalLoading(false);
     }
   };
+
+  const verifyEmail = useCallback(async (emailValue) => {
+    const normalized = emailValue.trim().toLowerCase();
+
+    if (!normalized || !emailRegex.test(normalized)) {
+      setEmailStatus('idle');
+      return;
+    }
+
+    setEmailStatus('checking');
+    setEmailProvider(null);
+
+    try {
+      const result = await checkEmailRequest({ email: normalized });
+      if (result.exists) {
+        setEmailStatus('found');
+        setEmailProvider(result.provider);
+      } else {
+        setEmailStatus('not-found');
+      }
+    } catch {
+      setEmailStatus('error');
+    }
+  }, []);
+
+  const handleEmailBlur = () => {
+    if (checkTimeoutRef.current) clearTimeout(checkTimeoutRef.current);
+    checkTimeoutRef.current = setTimeout(() => {
+      verifyEmail(email);
+    }, 150);
+  };
+
+  const handleEmailChange = (e) => {
+    setEmail(e.target.value);
+    setErrorMessage('');
+    // Reset status when user starts editing again
+    if (emailStatus !== 'idle') {
+      setEmailStatus('idle');
+      setEmailProvider(null);
+    }
+  };
+
+
 
   return (
     <form onSubmit={handleSubmit} className="w-full flex flex-col items-center">
       <h1 className={`text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white mb-6 transition-all duration-700 ease-out ${isActive ? 'opacity-100 translate-y-0 blur-none delay-100' : 'opacity-0 translate-y-4 blur-sm'}`}>Sign In</h1>
       
       <div className={`w-full transition-all duration-700 ease-out ${isActive ? 'opacity-100 translate-y-0 blur-none delay-200' : 'opacity-0 translate-y-4 blur-sm'}`}>
-        <GoogleButton onClick={handleGoogleClick} disabled={isLoading || googleLoading} isLoading={googleLoading} />
-      </div>
-
-      <div className={`w-full transition-all duration-700 ease-out ${isActive ? 'opacity-100 translate-y-0 blur-none delay-[250ms]' : 'opacity-0 translate-y-4 blur-sm'}`}>
-        <SocialIcons />
+        <SocialIcons handleGoogleSignIn={handleGoogleSignIn} />
       </div>
 
       <div className={`flex items-center w-full my-6 transition-all duration-700 ease-out ${isActive ? 'opacity-100 translate-y-0 delay-300' : 'opacity-0 translate-y-4'}`}>
@@ -110,8 +109,22 @@ const LoginForm = ({ isActive, onForgotClick, onLoginSuccess, setGlobalLoading }
       </div>
       
       <div className={`w-full transition-all duration-700 ease-out ${isActive ? 'opacity-100 translate-x-0 delay-[400ms]' : 'opacity-0 -translate-x-8'}`}>
-        <InputField icon={Mail} type="email" placeholder="Email Address" value={email} onChange={(e) => setEmail(e.target.value)} disabled={isLoading} />
+        <InputField
+          icon={Mail}
+          type="email"
+          placeholder="Email Address"
+          value={email}
+          onChange={handleEmailChange}
+          onBlur={handleEmailBlur}
+          disabled={isLoading}
+          statusIcon={
+            emailStatus === 'found' ? 'success' :
+            emailStatus === 'not-found' ? 'error' :
+            emailStatus === 'checking' ? 'loading' : null
+          }
+        />
       </div>
+
       <div className={`w-full transition-all duration-700 ease-out ${isActive ? 'opacity-100 translate-x-0 delay-[500ms]' : 'opacity-0 -translate-x-8'}`}>
         <InputField icon={Lock} type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} disabled={isLoading} />
       </div>
@@ -122,7 +135,7 @@ const LoginForm = ({ isActive, onForgotClick, onLoginSuccess, setGlobalLoading }
         </button>
       </div>
       {errorMessage && (
-        <p className="mb-4 w-full max-w-[320px] text-center text-sm text-red-500 dark:text-red-400 font-medium">
+        <p className="mb-4 w-full max-w-[320px] text-center text-sm text-red-500 dark:text-red-400 font-medium animate-[shake_0.4s_ease-in-out]">
           {errorMessage}
         </p>
       )}

@@ -1,12 +1,14 @@
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
+
+// Load env BEFORE any modules that depend on process.env
+dotenv.config();
+
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const connectDB = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
-
-dotenv.config();
 
 if (!process.env.MONGO_URI) {
     throw new Error("MONGO_URI is not configured");
@@ -37,7 +39,9 @@ const authLimiter = rateLimit({
 });
 
 // Middleware
-app.use(helmet());
+app.use(helmet({
+    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+}));
 app.use(cors({
     origin(origin, callback) {
         if (!origin || allowedOrigins.includes(origin)) {

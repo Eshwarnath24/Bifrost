@@ -33,7 +33,37 @@ export const loginRequest = (payload) => requestJson('/api/auth/login', payload)
 
 export const signupRequest = (payload) => requestJson('/api/auth/signup', payload);
 
+export const verifySignupOtpRequest = (payload) => requestJson('/api/auth/verify-signup-otp', payload);
+
 export const googleAuthRequest = (token) => requestJson('/api/auth/google', { token });
+
+export const checkEmailRequest = (payload) => requestJson('/api/auth/check-email', payload);
+
+export const forgotPasswordRequest = (payload) => requestJson('/api/auth/forgot-password', payload);
+
+export const verifyResetOtpRequest = (payload) => requestJson('/api/auth/verify-reset-otp', payload);
+
+export const resetPasswordRequest = (payload) => requestJson('/api/auth/reset-password', payload);
+
+export const setPasswordRequest = async (token, payload) => {
+  const response = await fetch(`${API_BASE_URL}/api/auth/set-password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  });
+
+  const data = await readJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Request failed');
+  }
+
+  return data;
+};
 
 export const loadGoogleIdentityScript = () => {
   if (typeof window === 'undefined') {

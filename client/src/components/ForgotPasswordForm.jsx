@@ -1,6 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Mail, Lock, ArrowRight, CheckCircle, Loader2, KeyRound, ShieldCheck } from 'lucide-react';
 import { InputField } from './FormElements';
+import { forgotPasswordRequest, verifyResetOtpRequest, resetPasswordRequest, checkEmailRequest } from '../lib/authApi';
+
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 const ForgotPasswordForm = ({ isActive, onBackClick, setGlobalLoading }) => {
   const [email, setEmail] = useState('');
@@ -8,8 +11,14 @@ const ForgotPasswordForm = ({ isActive, onBackClick, setGlobalLoading }) => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const [step, setStep] = useState('email'); // email → otp → otpSuccess → newPassword → verified
   const [isLoading, setIsLoading] = useState(false);
+  const [resetToken, setResetToken] = useState('');
+
+  // Email verification state
+  const [emailStatus, setEmailStatus] = useState('idle'); // idle | checking | found | not-found | error
+  const checkTimeoutRef = useRef(null);
   
   const inputRefs = [useRef(null), useRef(null), useRef(null), useRef(null)];
 
@@ -22,43 +31,106 @@ const ForgotPasswordForm = ({ isActive, onBackClick, setGlobalLoading }) => {
         setNewPassword('');
         setConfirmPassword('');
         setPasswordError('');
+        setErrorMessage('');
+        setResetToken('');
       }, 500);
       return () => clearTimeout(timer);
     }
+    setEmailStatus('idle');
   }, [isActive]);
 
-  const handleSendOtp = (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    if (setGlobalLoading) setGlobalLoading(true);
-    setTimeout(() => { 
-      setIsLoading(false); 
-      if (setGlobalLoading) setGlobalLoading(false);
-      setStep('otp'); 
-    }, 1500);
+  const verifyEmail = useCallback(async (emailValue) => {
+    const normalized = emailValue.trim().toLowerCase();
+    if (!normalized || !emailRegex.test(normalized)) {
+      setEmailStatus('idle');
+      return;
+    }
+    setEmailStatus('checking');
+    try {
+      const result = await checkEmailRequest({ email: normalized });
+      setEmailStatus(result.exists ? 'found' : 'not-found');
+    } catch {
+      setEmailStatus('error');
+    }
+  }, []);
+
+  const handleEmailBlur = () => {
+    if (checkTimeoutRef.current) clearTimeout(checkTimeoutRef.current);
+    checkTimeoutRef.current = setTimeout(() => {
+      verifyEmail(email);
+    }, 150);
   };
 
-  const handleVerifyOtp = (e) => {
+  const handleEmailChange = (e) => {
+    setEmail(e.target.value);
+    setErrorMessage('');
+    if (emailStatus !== 'idle') {
+      setEmailStatus('idle');
+    }
+  };
+
+  const handleSendOtp = async (e) => {
     e.preventDefault();
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!emailRegex.test(normalizedEmail)) {
+      setErrorMessage('Please enter a valid email address');
+      return;
+    }
+
     setIsLoading(true);
+    setErrorMessage('');
     if (setGlobalLoading) setGlobalLoading(true);
-    setTimeout(() => {
+
+    try {
+      await forgotPasswordRequest({ email: normalizedEmail });
+      setEmail(normalizedEmail);
+      setStep('otp');
+    } catch (error) {
+      setErrorMessage(error.message || 'Failed to send OTP');
+    } finally {
       setIsLoading(false);
       if (setGlobalLoading) setGlobalLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    const otpCode = otp.join('');
+
+    if (!/^\d{4}$/.test(otpCode)) {
+      setErrorMessage('OTP must be a 4-digit code');
+      return;
+    }
+
+    setIsLoading(true);
+    setErrorMessage('');
+    if (setGlobalLoading) setGlobalLoading(true);
+
+    try {
+      const result = await verifyResetOtpRequest({ email, otp: otpCode });
+      setResetToken(result.resetToken);
+
       // Show brief OTP success animation before transitioning
       setStep('otpSuccess');
       setTimeout(() => {
         setStep('newPassword');
       }, 2200);
-    }, 1500);
+    } catch (error) {
+      setErrorMessage(error.message || 'OTP verification failed');
+    } finally {
+      setIsLoading(false);
+      if (setGlobalLoading) setGlobalLoading(false);
+    }
   };
 
-  const handleResetPassword = (e) => {
+  const handleResetPassword = async (e) => {
     e.preventDefault();
     setPasswordError('');
+    setErrorMessage('');
 
-    if (newPassword.length < 6) {
-      setPasswordError('Password must be at least 6 characters.');
+    if (newPassword.length < 8) {
+      setPasswordError('Password must be at least 8 characters.');
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -68,12 +140,17 @@ const ForgotPasswordForm = ({ isActive, onBackClick, setGlobalLoading }) => {
 
     setIsLoading(true);
     if (setGlobalLoading) setGlobalLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      if (setGlobalLoading) setGlobalLoading(false);
+
+    try {
+      await resetPasswordRequest({ resetToken, newPassword });
       setStep('verified');
       setTimeout(() => { onBackClick(); }, 2000);
-    }, 1500);
+    } catch (error) {
+      setPasswordError(error.message || 'Failed to reset password');
+    } finally {
+      setIsLoading(false);
+      if (setGlobalLoading) setGlobalLoading(false);
+    }
   };
 
   const handleOtpChange = (index, value) => {
@@ -152,10 +229,36 @@ const ForgotPasswordForm = ({ isActive, onBackClick, setGlobalLoading }) => {
       {step === 'email' && (
         <>
           <div className={`w-full transition-all duration-700 ease-out ${isActive ? 'opacity-100 translate-x-0 delay-[400ms]' : 'opacity-0 translate-x-8'}`}>
-            <InputField icon={Mail} type="email" placeholder="Email Address" value={email} onChange={(e) => setEmail(e.target.value)} disabled={isLoading} />
+            <InputField
+              icon={Mail}
+              type="email"
+              placeholder="Email Address"
+              value={email}
+              onChange={handleEmailChange}
+              onBlur={handleEmailBlur}
+              disabled={isLoading}
+              statusIcon={
+                emailStatus === 'found' ? 'success' :
+                emailStatus === 'not-found' ? 'error' :
+                emailStatus === 'checking' ? 'loading' : null
+              }
+            />
           </div>
+
+          {/* Email status feedback — minimal */}
+          {emailStatus === 'not-found' && (
+            <p className="mb-3 w-full max-w-[320px] text-center text-sm text-red-400 font-medium animate-[shake_0.4s_ease-in-out]">
+              No account found with this email
+            </p>
+          )}
+
+          {errorMessage && (
+            <p className="mb-4 w-full max-w-[320px] text-center text-sm text-red-500 dark:text-red-400 font-medium animate-[shake_0.4s_ease-in-out]">
+              {errorMessage}
+            </p>
+          )}
           
-          <button disabled={isLoading || !email} className={`relative overflow-hidden group bg-indigo-600 dark:bg-indigo-500 text-white rounded-xl px-12 py-3.5 font-bold tracking-wide hover:bg-indigo-700 dark:hover:bg-indigo-600 hover:shadow-xl hover:shadow-indigo-500/40 transition-all duration-700 ease-out active:scale-95 w-full max-w-[240px] flex items-center justify-center mt-4 disabled:opacity-70 disabled:cursor-not-allowed ${isActive ? 'opacity-100 translate-y-0 scale-100 delay-[500ms]' : 'opacity-0 translate-y-8 scale-90'}`}>
+          <button disabled={isLoading || !email || emailStatus !== 'found'} className={`relative overflow-hidden group bg-indigo-600 dark:bg-indigo-500 text-white rounded-xl px-12 py-3.5 font-bold tracking-wide hover:bg-indigo-700 dark:hover:bg-indigo-600 hover:shadow-xl hover:shadow-indigo-500/40 transition-all duration-700 ease-out active:scale-95 w-full max-w-[240px] flex items-center justify-center mt-4 disabled:opacity-70 disabled:cursor-not-allowed ${isActive ? 'opacity-100 translate-y-0 scale-100 delay-[500ms]' : 'opacity-0 translate-y-8 scale-90'}`}>
             <span className="relative z-10 flex items-center gap-2">
               {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'SEND OTP'}
             </span>
@@ -182,6 +285,12 @@ const ForgotPasswordForm = ({ isActive, onBackClick, setGlobalLoading }) => {
               />
             ))}
           </div>
+
+          {errorMessage && (
+            <p className="mb-4 w-full max-w-[320px] text-center text-sm text-red-500 dark:text-red-400 font-medium animate-[shake_0.4s_ease-in-out]">
+              {errorMessage}
+            </p>
+          )}
 
           <button disabled={isLoading || otp.some(d => d === '')} className={`relative overflow-hidden group bg-indigo-600 dark:bg-indigo-500 text-white rounded-xl px-12 py-3.5 font-bold tracking-wide hover:bg-indigo-700 dark:hover:bg-indigo-600 hover:shadow-xl hover:shadow-indigo-500/40 transition-all duration-700 ease-out active:scale-95 w-full max-w-[240px] flex items-center justify-center mt-2 disabled:opacity-70 disabled:cursor-not-allowed ${isActive ? 'opacity-100 translate-y-0 scale-100 delay-[500ms]' : 'opacity-0 translate-y-8 scale-90'}`}>
             <span className="relative z-10 flex items-center gap-2">
