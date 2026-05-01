@@ -1,4 +1,5 @@
 const nodemailer = require("nodemailer");
+const path = require("path");
 
 let transporter = null;
 
@@ -54,7 +55,7 @@ const sendOtpEmail = async (to, otp, purpose = "signup") => {
     const html = `
     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 480px; margin: 0 auto; background: #0f172a; border-radius: 16px; overflow: hidden; border: 1px solid #1e293b;">
       <div style="background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899); padding: 32px 24px; text-align: center;">
-        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgMTIwIiB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCI+DQogIDxkZWZzPg0KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0ibG9nb0dyYWRpZW50IiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj4NCiAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiMwYWMyZjI7c3RvcC1vcGFjaXR5OjEiIC8+DQogICAgICA8c3RvcCBvZmZzZXQ9IjQ1JSIgc3R5bGU9InN0b3AtY29sb3I6IzNhNTBlNTtzdG9wLW9wYWNpdHk6MSIgLz4NCiAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3R5bGU9InN0b3AtY29sb3I6I2E4MTdkNjtzdG9wLW9wYWNpdHk6MSIgLz4NCiAgICA8L2xpbmVhckdyYWRpZW50Pg0KICA8L2RlZnM+DQogIA0KICA8IS0tIEJhY2tncm91bmQgcm91bmRlZCBzcXVhcmUgKHNxdWlyY2xlKSAtLT4NCiAgPHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjEyMCIgaGVpZ2h0PSIxMjAiIHJ4PSIzMiIgcnk9IjMyIiBmaWxsPSJ1cmwoI2xvZ29HcmFkaWVudCkiIHN0eWxlPSJmaWx0ZXI6IGRyb3Atc2hhZG93KDAgOHB4IDE2cHggcmdiYSg1OCwgODAsIDIyOSwgMC4yKSkiLz4NCiAgDQogIDwhLS0gSG9sbG93IGRpYW1vbmQgc2hhcGUgKHJvdGF0ZWQgc3F1YXJlIHdpdGggcm91bmRlZCBjb3JuZXJzKSAtLT4NCiAgPGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNjAsIDYwKSI+DQogICAgPHJlY3QgeD0iLTI0IiB5PSItMjQiIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgcng9IjEyIiByeT0iMTIiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZmZmZiIgc3Ryb2tlLXdpZHRoPSI0LjUiIHRyYW5zZm9ybT0icm90YXRlKDQ1KSIgLz4NCiAgPC9nPg0KICANCiAgPCEtLSBJbm5lciBzb2xpZCB3aGl0ZSBkb3QgLS0+DQogIDxjaXJjbGUgY3g9IjYwIiBjeT0iNjAiIHI9IjgiIGZpbGw9IiNmZmZmZmYiLz4NCjwvc3ZnPg==" alt="Bifrost" width="48" height="48" style="display: inline-block; vertical-align: middle; margin-right: 12px; border-radius: 12px;" />
+        <img src="cid:bifrost-logo" alt="Bifrost" width="48" height="48" style="display: inline-block; vertical-align: middle; margin-right: 12px; border-radius: 12px;" />
         <h1 style="color: #fff; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.5px; display: inline-block; vertical-align: middle;">Bifrost</h1>
       </div>
       <div style="padding: 32px 24px; text-align: center;">
@@ -73,7 +74,12 @@ const sendOtpEmail = async (to, otp, purpose = "signup") => {
             from: `"Bifrost" <${process.env.EMAIL_USER}>`,
             to,
             subject,
-            html
+            html,
+            attachments: [{
+                filename: "logo.png",
+                path: path.join(__dirname, "..", "assets", "logo.png"),
+                cid: "bifrost-logo"
+            }]
         });
     } catch (error) {
         // Log the raw error for debugging

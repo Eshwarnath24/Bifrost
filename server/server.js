@@ -25,7 +25,7 @@ app.set("trust proxy", 1);
 // Connect Database
 connectDB();
 
-const allowedOrigins = (process.env.CLIENT_ORIGIN || process.env.FRONTEND_URL || "http://localhost:5173,http://localhost:5174")
+const allowedOrigins = (process.env.CLIENT_ORIGIN || process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:5173,http://localhost:5174")
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean);
