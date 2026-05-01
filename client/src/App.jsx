@@ -24,8 +24,9 @@ export default function App() {
       <Navbar isDark={isDark} toggleTheme={toggleTheme} isLoading={false} />
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/" element={<Login />} />
         <Route
-          path="/"
+          path="/home"
           element={
             <ProtectedRoute>
               <Home />
