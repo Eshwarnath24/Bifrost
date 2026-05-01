@@ -1,16 +1,86 @@
-# React + Vite
+# Bifrost 🌉
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern, minimal starter for a React + Vite frontend paired with an Express + MongoDB backend — focused on authentication, email utilities, and social sign-on.
 
-Currently, two official plugins are available:
+Key goals:
+- Elegant developer experience with Vite HMR ⚡
+- Secure, JWT-based auth on the server 🔐
+- Email utilities for verification and password reset ✉️
+- Social sign-on (Google, GitHub) ready to configure 🤝
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+**Repository layout**
+- [client](client): React + Vite application (UI, routes, components).
+- [server](server): Express API, auth controllers, database connection, and utilities.
 
-## React Compiler
+**Core tech**: React, Vite, Express, MongoDB, Mongoose, JWT, Nodemailer.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+--
 
-## Expanding the ESLint configuration
+**Quick Start**
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+1. Install dependencies for both projects:
+
+```bash
+# from repository root
+cd client && npm install
+cd ../server && npm install
+```
+
+2. Create environment variables (see below) and run both apps in development:
+
+```bash
+# Start the client (Vite)
+cd client
+npm run dev
+
+# Start the server (nodemon recommended)
+cd ../server
+npm run dev
+```
+
+Open the client at http://localhost:5173 and the API at http://localhost:5000 by default.
+
+--
+
+**Environment variables**
+
+Create a `.env` file in the `server` folder (example: [server/.env](server/.env)). The server expects the following variables:
+
+- **MONGO_URI**: MongoDB connection string (required).
+- **PORT**: Server port (default: `5000`).
+- **JWT_SECRET**: Strong secret used to sign JWTs (required).
+- **GOOGLE_CLIENT_ID**: OAuth client ID for Google sign-in (used for token verification).
+- **CLIENT_URL**: Frontend origin(s) for CORS (e.g. `http://localhost:5173`).
+- **EMAIL_USER**: Email address used to send messages (Nodemailer 'from').
+- **EMAIL_PASSWORD**: App password or SMTP password for `EMAIL_USER`.
+
+Notes:
+- Never commit real credentials to version control. Use environment secrets or CI/CD secret storage for production.
+- If you prefer different names for client origin variables, the server will also check `CLIENT_ORIGIN` and `FRONTEND_URL`.
+
+--
+
+**Project scripts**
+- Client: `npm run dev` (Vite), `npm run build` (production), `npm run preview` (serve build).
+- Server: `npm run dev` (nodemon), `npm start` (node server.js).
+
+--
+
+**Production & Deployment**
+
+- Use environment-specific configuration in your hosting platform (Vercel, Heroku, DigitalOcean, etc.).
+- Ensure `MONGO_URI` points to a production-grade MongoDB cluster and `JWT_SECRET` is sufficiently random and stored securely.
+
+--
+
+**Contributing**
+
+Contributions are welcome. Please open issues for bugs or feature requests and submit pull requests for improvements.
+
+--
+
+**License**
+
+This project is provided under the terms in the repository `LICENSE` file.
+
+
