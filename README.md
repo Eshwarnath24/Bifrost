@@ -2,6 +2,8 @@
 
 A modern, minimal starter for a React + Vite frontend paired with an Express + MongoDB backend — focused on authentication, email utilities, and social sign-on.
 
+**Scope:** This repository focuses exclusively on authentication (login, signup, social sign-on, password reset) and related utilities — it does not implement a full product or unrelated business logic.
+
 Key goals:
 - Elegant developer experience with Vite HMR ⚡
 - Secure, JWT-based auth on the server 🔐
